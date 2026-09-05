@@ -1,5 +1,10 @@
 package com.example.quickbillposs.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -15,10 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.quickbillposs.data.model.CartItem
@@ -27,6 +34,7 @@ import com.example.quickbillposs.ui.components.NumericKeypad
 import com.example.quickbillposs.ui.components.SuggestionChipRow
 import com.example.quickbillposs.ui.components.formatAmount
 import com.example.quickbillposs.viewmodel.SalesViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +42,32 @@ fun QuickSaleScreen(
     onNavigateToPrinterSettings: () -> Unit,
     viewModel: SalesViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        arrayOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN
+        )
+    } else {
+        emptyArray()
+    }
+
+    val printPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (granted) {
+            viewModel.printReceipt()
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Bluetooth permission is required to print receipts.")
+            }
+        }
+    }
+
     val input by viewModel.input.collectAsStateWithLifecycle()
     val cart by viewModel.cart.collectAsStateWithLifecycle()
     val total by viewModel.total.collectAsStateWithLifecycle()
@@ -48,7 +82,6 @@ fun QuickSaleScreen(
     var showLabelDialog by remember { mutableStateOf(false) }
 
     // Show print status snackbar
-    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(printStatus) {
         printStatus?.let {
             snackbarHostState.showSnackbar(it)
@@ -256,7 +289,21 @@ fun QuickSaleScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { viewModel.printReceipt() },
+                        onClick = {
+                            val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                bluetoothPermissions.all {
+                                    ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                                }
+                            } else {
+                                true
+                            }
+
+                            if (hasPerm) {
+                                viewModel.printReceipt()
+                            } else {
+                                printPermissionLauncher.launch(bluetoothPermissions)
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                         enabled = cart.isNotEmpty() && !isLoading
                     ) {
@@ -285,51 +332,51 @@ fun QuickSaleScreen(
                 }
             }
         }
-    }
 
-    // ── Label Dialog (quick item name) ────────────────────────────────────────
-    if (showLabelDialog) {
-        var labelText by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = {
-                showLabelDialog = false
-                viewModel.addItemFromInput()
-            },
-            title = { Text("Item label (optional)") },
-            text = {
-                OutlinedTextField(
-                    value = labelText,
-                    onValueChange = { labelText = it },
-                    placeholder = { Text("e.g. Milk, Rice, etc.") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLabelDialog = false
-                    viewModel.addItemFromInput(labelText)
-                }) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
+        // ── Label Dialog (quick item name) ────────────────────────────────────────
+        if (showLabelDialog) {
+            var labelText by remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = {
                     showLabelDialog = false
                     viewModel.addItemFromInput()
-                }) { Text("Skip") }
-            }
-        )
-    }
+                },
+                title = { Text("Item label (optional)") },
+                text = {
+                    OutlinedTextField(
+                        value = labelText,
+                        onValueChange = { labelText = it },
+                        placeholder = { Text("e.g. Milk, Rice, etc.") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showLabelDialog = false
+                        viewModel.addItemFromInput(labelText)
+                    }) { Text("Add") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showLabelDialog = false
+                        viewModel.addItemFromInput()
+                    }) { Text("Skip") }
+                }
+            )
+        }
 
-    // ── Checkout Bottom Sheet ─────────────────────────────────────────────────
-    if (showCheckout) {
-        CheckoutSheet(
-            total = total,
-            onDismiss = { showCheckout = false },
-            onCheckout = { method, tendered ->
-                viewModel.checkout(method, tendered)
-                showCheckout = false
-            }
-        )
+        // ── Checkout Bottom Sheet ─────────────────────────────────────────────────
+        if (showCheckout) {
+            CheckoutSheet(
+                total = total,
+                onDismiss = { showCheckout = false },
+                onCheckout = { method, tendered ->
+                    viewModel.checkout(method, tendered)
+                    showCheckout = false
+                }
+            )
+        }
     }
 }
 

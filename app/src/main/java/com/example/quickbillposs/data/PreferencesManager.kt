@@ -21,6 +21,7 @@ class PreferencesManager(private val context: Context) {
         private val TAX_PERCENT = intPreferencesKey("tax_percent")
         private val PRINTER_MAC = stringPreferencesKey("printer_mac")
         private val PRINTER_NAME = stringPreferencesKey("printer_name")
+        private val PAPER_WIDTH = intPreferencesKey("paper_width")
         private val SUGGESTIONS_ENABLED = stringPreferencesKey("suggestions_enabled")
         private val DEFAULT_PAYMENT = stringPreferencesKey("default_payment")
         private val RECEIPT_FOOTER = stringPreferencesKey("receipt_footer")
@@ -48,6 +49,9 @@ class PreferencesManager(private val context: Context) {
 
     val printerName: Flow<String> = context.dataStore.data
         .map { it[PRINTER_NAME] ?: "No printer selected" }
+
+    val paperWidth: Flow<Int> = context.dataStore.data
+        .map { it[PAPER_WIDTH] ?: 58 }
 
     val suggestionsEnabled: Flow<Boolean> = context.dataStore.data
         .map { (it[SUGGESTIONS_ENABLED] ?: "true") == "true" }
@@ -79,6 +83,9 @@ class PreferencesManager(private val context: Context) {
             it[PRINTER_NAME] = name
         }
     }
+
+    suspend fun setPaperWidth(width: Int) =
+        context.dataStore.edit { it[PAPER_WIDTH] = width }
 
     suspend fun setSuggestionsEnabled(enabled: Boolean) =
         context.dataStore.edit { it[SUGGESTIONS_ENABLED] = enabled.toString() }

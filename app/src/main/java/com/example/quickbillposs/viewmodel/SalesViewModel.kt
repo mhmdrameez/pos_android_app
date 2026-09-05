@@ -70,6 +70,8 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
     val shopPhone = prefs.shopPhone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val taxPercent = prefs.taxPercent.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0)
     val printerMac = prefs.printerMac.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val printerName = prefs.printerName.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "No printer selected")
+    val paperWidth = prefs.paperWidth.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 58)
     val receiptFooter = prefs.receiptFooter.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "Thank you! Visit again.")
 
     init {
@@ -264,7 +266,8 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
                 amountTendered = amountTendered,
                 taxPercent = taxPercent.value,
                 footerText = receiptFooter.value,
-                savedMac = printerMac.value
+                savedMac = printerMac.value,
+                paperWidth = paperWidth.value
             )
             _printStatus.value = when (result) {
                 is PrintResult.Success -> "✓ Printed successfully"
@@ -283,6 +286,12 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun savePrinter(mac: String, name: String) {
         prefs.setPrinter(mac, name)
+    }
+
+    fun setPaperWidth(width: Int) {
+        viewModelScope.launch {
+            prefs.setPaperWidth(width)
+        }
     }
 
     // ── Suggestions ───────────────────────────────────────────────────────────
