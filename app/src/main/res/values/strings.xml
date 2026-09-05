@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">QuickBill POS</string>
+    <string name="fab_content_description">Action</string>
+    <string name="image_view_item_transform_content_description">Avatar</string>
+    <string name="nav_header_desc">Navigation Header</string>
+    <string name="nav_header_title">QuickBill POS</string>
+    <string name="nav_header_subtitle">quickbill@example.com</string>
+    <string name="menu_transform">Transform</string>
+    <string name="menu_reflow">Reflow</string>
+    <string name="menu_slideshow">Slideshow</string>
+    <string name="menu_settings">Settings</string>
 </resources>

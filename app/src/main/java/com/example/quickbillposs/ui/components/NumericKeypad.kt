@@ -6,14 +6,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -174,7 +173,7 @@ private fun RegularKey(
             )
             .clickable(
                 interactionSource = interactionSource,
-                indication = rememberRipple()
+                indication = ripple()
             ) { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -208,7 +207,7 @@ private fun SpecialKey(
             )
             .clickable(
                 interactionSource = interactionSource,
-                indication = rememberRipple()
+                indication = ripple()
             ) { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -242,7 +241,7 @@ private fun AddItemKey(
             )
             .clickable(
                 interactionSource = interactionSource,
-                indication = rememberRipple()
+                indication = ripple()
             ) { onClick() },
         contentAlignment = Alignment.Center
     ) {
