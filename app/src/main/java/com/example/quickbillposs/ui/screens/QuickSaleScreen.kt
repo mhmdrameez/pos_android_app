@@ -38,6 +38,7 @@ import com.example.quickbillposs.ui.components.CartItemRow
 import com.example.quickbillposs.ui.components.NumericKeypad
 import com.example.quickbillposs.ui.components.SuggestionChipRow
 import com.example.quickbillposs.ui.components.formatAmount
+import com.example.quickbillposs.ui.components.formatQuantity
 import com.example.quickbillposs.ui.theme.*
 import com.example.quickbillposs.viewmodel.SalesViewModel
 import kotlinx.coroutines.launch
@@ -149,7 +150,7 @@ fun QuickSaleScreen(
 
                     NumericKeypad(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        isMultiplyActive = input.contains('x') || input.contains('*'),
+                        isMultiplyActive = input.contains('x') || input.contains('X') || input.contains('*') || input.contains('×'),
                         onDigit = viewModel::onDigit,
                         onBackspace = viewModel::onBackspace,
                         onClear = viewModel::onClear,
@@ -244,7 +245,7 @@ fun QuickSaleScreen(
 
                 NumericKeypad(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    isMultiplyActive = input.contains('x') || input.contains('*'),
+                    isMultiplyActive = input.contains('x') || input.contains('X') || input.contains('*') || input.contains('×'),
                     onDigit = viewModel::onDigit,
                     onBackspace = viewModel::onBackspace,
                     onClear = viewModel::onClear,
@@ -280,7 +281,7 @@ fun QuickSaleScreen(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
-                                            "$itemCount",
+                                            formatQuantity(itemCount),
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = PosTextWhite
                                         )
@@ -468,7 +469,7 @@ private fun TopControlRow(
 
 @Composable
 private fun CartHeader(
-    itemCount: Int,
+    itemCount: Double,
     onClearCart: () -> Unit
 ) {
     Row(
@@ -482,7 +483,7 @@ private fun CartHeader(
             color = PosTextDark
         )
 
-        if (itemCount > 0) {
+        if (itemCount > 0.0) {
             TextButton(
                 onClick = onClearCart,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
@@ -499,7 +500,7 @@ private fun CartHeader(
 
 @Composable
 private fun OrderSummarySection(
-    itemCount: Int,
+    itemCount: Double,
     total: Double,
     isLoading: Boolean,
     cartNotEmpty: Boolean,
@@ -517,7 +518,7 @@ private fun OrderSummarySection(
                 color = PosTextMuted
             )
             Text(
-                text = "$itemCount",
+                text = formatQuantity(itemCount),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = PosTextDark
             )
@@ -656,11 +657,17 @@ private fun AmountDisplay(
 
 private fun buildDisplayText(input: String): String {
     if (input.isBlank()) return "₹0"
-    return if (input.contains('x')) {
-        val parts = input.split('x')
+    val clean = input.trim().replace('X', 'x').replace('*', 'x').replace('×', 'x')
+    return if (clean.contains('x')) {
+        val parts = clean.split('x')
         val price = parts[0].toDoubleOrNull() ?: 0.0
-        val qty = parts.getOrNull(1)?.toIntOrNull() ?: 1
-        "₹${formatAmount(price)} × $qty = ₹${formatAmount(price * qty)}"
+        val qtyStr = parts.getOrNull(1) ?: ""
+        val qty = qtyStr.toDoubleOrNull() ?: 1.0
+        if (qtyStr.isBlank()) {
+            "₹${formatAmount(price)} ×"
+        } else {
+            "₹${formatAmount(price)} × ${formatQuantity(qty)} = ₹${formatAmount(price * qty)}"
+        }
     } else {
         "₹$input"
     }
@@ -668,31 +675,39 @@ private fun buildDisplayText(input: String): String {
 
 @Composable
 private fun EmptyCartPlaceholder(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.ShoppingCart,
-            contentDescription = null,
-            modifier = Modifier.size(52.dp),
-            tint = PosTextDark
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = "Your cart is empty",
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-            color = PosTextDark,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Enter an amount and tap Add Item",
-            style = MaterialTheme.typography.bodySmall,
-            color = PosTextMuted,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(vertical = 32.dp, horizontal = 16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ShoppingCart,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = PosTextMuted
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Your cart is empty",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                ),
+                color = PosTextDark,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Enter an amount and tap Add Item",
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = PosTextMuted,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

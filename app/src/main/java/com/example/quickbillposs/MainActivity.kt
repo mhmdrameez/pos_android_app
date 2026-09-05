@@ -5,10 +5,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -30,17 +30,30 @@ import androidx.navigation.compose.*
 import com.example.quickbillposs.ui.navigation.Screen
 import com.example.quickbillposs.ui.navigation.bottomNavItems
 import com.example.quickbillposs.ui.screens.*
-import com.example.quickbillposs.ui.theme.PosBgSidebar
-import com.example.quickbillposs.ui.theme.PosBorder
-import com.example.quickbillposs.ui.theme.PosSteelBlue
-import com.example.quickbillposs.ui.theme.QuickBillTheme
+import com.example.quickbillposs.ui.theme.*
 import com.example.quickbillposs.viewmodel.SalesViewModel
+
+import androidx.lifecycle.lifecycleScope
+import com.example.quickbillposs.data.AppDatabase
+import com.example.quickbillposs.data.PreferencesManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Safely pre-warm Database & DataStore asynchronously during splash screen
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                AppDatabase.getInstance(applicationContext)
+                PreferencesManager(applicationContext)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
 
         setContent {
             QuickBillTheme {
@@ -72,7 +85,7 @@ fun QuickBillApp() {
     val isLandscapeOrTablet = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
 
     if (isLandscapeOrTablet) {
-        // ── TABLET / LANDSCAPE LAYOUT (Left Navigation Rail) ──────────────────
+        // ── TABLET / LANDSCAPE LAYOUT (Left Sidebar as in HTML Template) ─────
         Scaffold { innerPadding ->
             Row(
                 modifier = Modifier
@@ -80,56 +93,56 @@ fun QuickBillApp() {
                     .padding(innerPadding)
             ) {
                 Surface(
-                    color = PosBgSidebar,
+                    color = PosBgPanel,
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(72.dp)
                         .fillMaxHeight()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(vertical = 12.dp, horizontal = 6.dp),
+                            .padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
+                        // Top Logo / Menu button
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 shadowElevation = 1.dp,
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .border(1.dp, PosBorder, RoundedCornerShape(10.dp))
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Menu,
                                         contentDescription = "Menu",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = PosTextDark,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
 
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(4.dp))
 
+                            // Navigation buttons (.nav-btn)
                             bottomNavItems.forEach { screen ->
                                 val isSelected = currentDestination?.hierarchy?.any {
                                     it.route == screen.route
                                 } == true
 
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) MaterialTheme.colorScheme.surface else PosBgSidebar,
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.surface else PosBgPanel,
                                     shadowElevation = if (isSelected) 1.dp else 0.dp,
                                     modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .then(
-                                            if (isSelected) Modifier.border(1.dp, PosBorder, RoundedCornerShape(10.dp))
+                                            if (isSelected) Modifier.border(1.dp, PosPrimary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                                             else Modifier
                                         )
                                         .clickable {
@@ -146,7 +159,7 @@ fun QuickBillApp() {
                                         Icon(
                                             imageVector = screen.icon,
                                             contentDescription = screen.label,
-                                            tint = if (isSelected) PosSteelBlue else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (isSelected) PosPrimary else PosTextMuted,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -154,30 +167,41 @@ fun QuickBillApp() {
                             }
                         }
 
+                        // Bottom Sidebar Footer: LED status, POS Badge, Version
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            // Online Status LED
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = PosSteelBlue,
-                                modifier = Modifier.size(36.dp, 26.dp)
+                                shape = CircleShape,
+                                color = PosStatusOnline,
+                                modifier = Modifier.size(10.dp)
+                            ) {}
+
+                            // POS Badge (.pos-badge)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = PosPrimary,
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = "POS",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            fontSize = 10.sp
                                         ),
-                                        color = MaterialTheme.colorScheme.onPrimary
+                                        color = PosTextWhite
                                     )
                                 }
                             }
+
+                            // Version Tag
                             Text(
-                                text = "v1.0.60",
+                                text = "v1.0.0",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = PosTextMuted
                             )
                         }
                     }
@@ -219,12 +243,12 @@ fun QuickBillApp() {
                                     Icons.Default.Print,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
-                                    tint = if (isPrinterConnected) PosSteelBlue else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (isPrinterConnected) PosPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = if (isPrinterConnected) printerName.take(10) else "Printer",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isPrinterConnected) PosSteelBlue else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isPrinterConnected) PosPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

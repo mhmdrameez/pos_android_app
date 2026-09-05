@@ -2,6 +2,8 @@ package com.example.quickbillposs
 
 import com.example.quickbillposs.data.dao.ProductDao
 import com.example.quickbillposs.data.model.Product
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /**
@@ -11,6 +13,7 @@ import kotlin.math.abs
  *  - Recency of last use (20% weight)
  *
  * Mirrors the price-bucket + frequency logic from the web version.
+ * All DB operations run on Dispatchers.IO to prevent main thread blocking (ANR).
  */
 class SuggestionEngine(private val productDao: ProductDao) {
 
@@ -21,9 +24,9 @@ class SuggestionEngine(private val productDao: ProductDao) {
     suspend fun getSuggestions(
         input: String,
         maxResults: Int = 8
-    ): List<Product> {
-        val unitPrice = parseUnitPrice(input) ?: return getTopProducts(maxResults)
-        if (unitPrice <= 0.0) return getTopProducts(maxResults)
+    ): List<Product> = withContext(Dispatchers.IO) {
+        val unitPrice = parseUnitPrice(input) ?: return@withContext getTopProducts(maxResults)
+        if (unitPrice <= 0.0) return@withContext getTopProducts(maxResults)
 
         // Price bucket: ±30% of entered price, plus exact neighbors
         val bucketMin = unitPrice * 0.70
@@ -35,13 +38,12 @@ class SuggestionEngine(private val productDao: ProductDao) {
             limit = 30
         )
 
-        if (candidates.isEmpty()) return getTopProducts(maxResults)
+        if (candidates.isEmpty()) return@withContext getTopProducts(maxResults)
 
-        val now = System.currentTimeMillis()
         val maxFreq = candidates.maxOf { it.frequency }.coerceAtLeast(1)
         val maxRecency = candidates.maxOf { it.lastUsed }.coerceAtLeast(1L)
 
-        return candidates
+        candidates
             .map { product ->
                 val priceScore = 1.0 - (abs(product.price - unitPrice) / (bucketMax - bucketMin + 1))
                 val freqScore = product.frequency.toDouble() / maxFreq
@@ -75,14 +77,15 @@ class SuggestionEngine(private val productDao: ProductDao) {
         return clean.toDoubleOrNull()
     }
 
-    private suspend fun getTopProducts(limit: Int): List<Product> =
+    private suspend fun getTopProducts(limit: Int): List<Product> = withContext(Dispatchers.IO) {
         productDao.getTopProducts(limit)
+    }
 
     /**
      * Records a sale of the given product to improve future suggestions.
      * Call this after each successful checkout.
      */
-    suspend fun recordUsage(productId: Long) {
+    suspend fun recordUsage(productId: Long) = withContext(Dispatchers.IO) {
         productDao.incrementFrequency(productId)
     }
 
@@ -90,8 +93,8 @@ class SuggestionEngine(private val productDao: ProductDao) {
      * Upserts a product learned from a sale (no named product, just a price).
      * This creates auto-learned entries that power suggestions over time.
      */
-    suspend fun learnFromSale(price: Double, label: String = "") {
-        if (price <= 0) return
+    suspend fun learnFromSale(price: Double, label: String = "") = withContext(Dispatchers.IO) {
+        if (price <= 0) return@withContext
         val name = label.ifBlank { "₹${price.toInt()} item" }
         val existing = productDao.findByNameAndPrice(name, price)
         if (existing != null) {

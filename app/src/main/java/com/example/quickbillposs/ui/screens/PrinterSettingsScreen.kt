@@ -25,7 +25,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.quickbillposs.data.model.CartItem
 import com.example.quickbillposs.viewmodel.SalesViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun PrinterSettingsScreen(
@@ -62,14 +64,25 @@ fun PrinterSettingsScreen(
         )
     }
 
+    fun loadDevices() {
+        if (viewModel.isBluetoothEnabled()) {
+            scope.launch(Dispatchers.IO) {
+                val devices = viewModel.getPairedDevices()
+                withContext(Dispatchers.Main) {
+                    pairedDevices = devices
+                }
+            }
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val granted = permissions.values.all { it }
         hasBluetoothPermission = granted
-        if (granted && viewModel.isBluetoothEnabled()) {
-            pairedDevices = viewModel.getPairedDevices()
-        } else if (!granted) {
+        if (granted) {
+            loadDevices()
+        } else {
             scope.launch {
                 snackbarHostState.showSnackbar("Bluetooth permission is required to list paired devices.")
             }
@@ -79,8 +92,8 @@ fun PrinterSettingsScreen(
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasBluetoothPermission) {
             permissionLauncher.launch(bluetoothPermissions)
-        } else if (viewModel.isBluetoothEnabled()) {
-            pairedDevices = viewModel.getPairedDevices()
+        } else {
+            loadDevices()
         }
     }
 
@@ -250,7 +263,7 @@ fun PrinterSettingsScreen(
                                         CartItem(
                                             label = "Test Print Item",
                                             amount = 100.0,
-                                            quantity = 1
+                                            quantity = 1.0
                                         )
                                     ),
                                     total = 100.0,
@@ -358,8 +371,8 @@ fun PrinterSettingsScreen(
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasBluetoothPermission) {
                         permissionLauncher.launch(bluetoothPermissions)
-                    } else if (viewModel.isBluetoothEnabled()) {
-                        pairedDevices = viewModel.getPairedDevices()
+                    } else {
+                        loadDevices()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()

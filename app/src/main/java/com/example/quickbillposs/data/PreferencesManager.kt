@@ -3,11 +3,14 @@ package com.example.quickbillposs.data
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 private val Context.dataStore by preferencesDataStore(name = "quickbill_settings")
 
@@ -29,37 +32,46 @@ class PreferencesManager(private val context: Context) {
         const val DEFAULT_SHOP_NAME = "QuickBill POS"
     }
 
-    val shopName: Flow<String> = context.dataStore.data
+    private val safeDataStore: Flow<Preferences> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+
+    val shopName: Flow<String> = safeDataStore
         .map { it[SHOP_NAME] ?: DEFAULT_SHOP_NAME }
 
-    val shopAddress: Flow<String> = context.dataStore.data
+    val shopAddress: Flow<String> = safeDataStore
         .map { it[SHOP_ADDRESS] ?: "" }
 
-    val shopPhone: Flow<String> = context.dataStore.data
+    val shopPhone: Flow<String> = safeDataStore
         .map { it[SHOP_PHONE] ?: "" }
 
-    val upiId: Flow<String> = context.dataStore.data
+    val upiId: Flow<String> = safeDataStore
         .map { it[UPI_ID] ?: "" }
 
-    val taxPercent: Flow<Int> = context.dataStore.data
+    val taxPercent: Flow<Int> = safeDataStore
         .map { it[TAX_PERCENT] ?: 0 }
 
-    val printerMac: Flow<String> = context.dataStore.data
+    val printerMac: Flow<String> = safeDataStore
         .map { it[PRINTER_MAC] ?: "" }
 
-    val printerName: Flow<String> = context.dataStore.data
+    val printerName: Flow<String> = safeDataStore
         .map { it[PRINTER_NAME] ?: "No printer selected" }
 
-    val paperWidth: Flow<Int> = context.dataStore.data
+    val paperWidth: Flow<Int> = safeDataStore
         .map { it[PAPER_WIDTH] ?: 58 }
 
-    val suggestionsEnabled: Flow<Boolean> = context.dataStore.data
+    val suggestionsEnabled: Flow<Boolean> = safeDataStore
         .map { (it[SUGGESTIONS_ENABLED] ?: "true") == "true" }
 
-    val defaultPayment: Flow<String> = context.dataStore.data
+    val defaultPayment: Flow<String> = safeDataStore
         .map { it[DEFAULT_PAYMENT] ?: "CASH" }
 
-    val receiptFooter: Flow<String> = context.dataStore.data
+    val receiptFooter: Flow<String> = safeDataStore
         .map { it[RECEIPT_FOOTER] ?: "Thank you! Visit again." }
 
     suspend fun setShopName(value: String) =

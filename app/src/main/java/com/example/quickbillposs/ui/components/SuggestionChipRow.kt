@@ -2,18 +2,26 @@ package com.example.quickbillposs.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quickbillposs.data.model.Product
+import com.example.quickbillposs.ui.theme.*
 
 @Composable
 fun SuggestionChipRow(
@@ -26,59 +34,71 @@ fun SuggestionChipRow(
         enter = fadeIn() + slideInVertically(),
         exit = fadeOut() + slideOutVertically()
     ) {
-        Row(
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = PosBannerBg,
             modifier = modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .border(1.dp, PosBannerBorder, RoundedCornerShape(12.dp))
         ) {
-            suggestions.forEach { product ->
-                SuggestionChip(
-                    product = product,
-                    onClick = { onSuggestionClick(product) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lightbulb,
+                    contentDescription = null,
+                    tint = PosChipText,
+                    modifier = Modifier.size(16.dp)
                 )
+
+                Text(
+                    text = "Suggestions:",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    ),
+                    color = PosBannerText
+                )
+
+                suggestions.forEach { product ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = PosTextWhite,
+                        modifier = Modifier
+                            .border(1.dp, Color(0xFFE0E7FF), RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onSuggestionClick(product) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = product.name,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp
+                                ),
+                                color = PosChipText
+                            )
+                            Text(
+                                text = "₹${formatAmount(product.price)}",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ),
+                                color = PosPrimary
+                            )
+                        }
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun SuggestionChip(
-    product: Product,
-    onClick: () -> Unit
-) {
-    SuggestionChip(
-        onClick = onClick,
-        label = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = product.name.take(12),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1
-                )
-                Text(
-                    text = "₹${formatAmount(product.price)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-        },
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = SuggestionChipDefaults.suggestionChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        modifier = Modifier.height(48.dp)
-    )
 }

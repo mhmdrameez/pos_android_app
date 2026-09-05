@@ -71,11 +71,11 @@ class PrinterHelper(private val context: Context) {
 
     fun isBluetoothEnabled(): Boolean = bluetoothAdapter?.isEnabled == true
 
-    /** Returns list of paired Bluetooth devices */
+    /** Returns list of paired Bluetooth devices asynchronously on IO thread */
     @SuppressLint("MissingPermission")
-    fun getPairedDevices(): List<BluetoothDevice> {
-        if (!hasPermission()) return emptyList()
-        return try {
+    suspend fun getPairedDevices(): List<BluetoothDevice> = withContext(Dispatchers.IO) {
+        if (!hasPermission()) return@withContext emptyList()
+        return@withContext try {
             bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
         } catch (e: SecurityException) {
             emptyList()
@@ -180,10 +180,11 @@ class PrinterHelper(private val context: Context) {
         for (item in items) {
             val label = item.label.ifBlank { "Item" }.trim()
             val lineTotal = "Rs.${formatAmount(item.lineTotal)}"
+            val qtyStr = formatQuantity(item.quantity)
 
-            if (item.quantity > 1) {
+            if (item.quantity != 1.0) {
                 encoder.align("left").text(label.take(encoder.maxChars)).newline()
-                val qtyPriceStr = "  ${item.quantity} x Rs.${formatAmount(item.amount)}"
+                val qtyPriceStr = "  $qtyStr x Rs.${formatAmount(item.amount)}"
                 encoder.tableRow(qtyPriceStr, lineTotal)
             } else {
                 encoder.tableRow(label, lineTotal)
@@ -203,7 +204,7 @@ class PrinterHelper(private val context: Context) {
             encoder.separator('-')
         }
 
-        encoder.tableRow("Total Items: ${items.size}", "Total Qty: $totalQty")
+        encoder.tableRow("Total Items: ${items.size}", "Total Qty: ${formatQuantity(totalQty)}")
         encoder.separator('-')
 
         // 5. Grand Total (Bold)
@@ -420,6 +421,14 @@ class PrinterHelper(private val context: Context) {
             amount.toLong().toString()
         } else {
             String.format(Locale.US, "%.2f", amount)
+        }
+    }
+
+    private fun formatQuantity(qty: Double): String {
+        return if (qty % 1.0 == 0.0) {
+            qty.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.2f", qty).trimEnd('0').trimEnd('.')
         }
     }
 }

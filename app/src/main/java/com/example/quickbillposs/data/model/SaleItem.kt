@@ -21,8 +21,8 @@ data class SaleItem(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val saleId: Long,
-    val amount: Double,       // unit price
-    val quantity: Int = 1,
-    val label: String = "",   // optional product name
-    val lineTotal: Double = amount * quantity
+    val amount: Double,         // unit price
+    val quantity: Double = 1.0, // quantity can be decimal (e.g. 2.5)
+    val label: String = "",     // optional product name
+    val lineTotal: Double = 0.0 // stored explicitly; computed before insert
 )

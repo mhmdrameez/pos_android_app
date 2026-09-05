@@ -19,8 +19,8 @@ data class Product(
 data class CartItem(
     val id: Long = System.currentTimeMillis(),
     val label: String,
-    val amount: Double,   // unit price
-    val quantity: Int = 1
+    val amount: Double,       // unit price
+    val quantity: Double = 1.0 // quantity can be decimal (e.g. 2.5 kg)
 ) {
     val lineTotal: Double get() = amount * quantity
 }
