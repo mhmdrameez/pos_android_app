@@ -3,6 +3,7 @@ package com.example.quickbillposs.ui.screens
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -23,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,6 +85,10 @@ fun QuickSaleScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     var showCheckout by remember { mutableStateOf(false) }
+    var showOrdersSheet by remember { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600 || configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // Show print status snackbar
     LaunchedEffect(printStatus) {
@@ -106,43 +112,136 @@ fun QuickSaleScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = PosBgMain
     ) { innerPadding ->
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // ── LEFT WORKSPACE (Amount + Keypad + Suggestions) ────────────────────
+        if (isWideScreen) {
+            // ── 2-COLUMN DUAL PANEL (Tablet / Landscape) ──────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Left Workspace: Keypad
+                Column(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .fillMaxHeight()
+                        .padding(16.dp)
+                ) {
+                    TopControlRow(
+                        suggestionsEnabled = suggestionsEnabled,
+                        onToggleSuggestions = viewModel::toggleSuggestions,
+                        onNavigateToPrinter = onNavigateToPrinterSettings
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    AmountDisplay(input = input, modifier = Modifier.fillMaxWidth())
+
+                    Spacer(Modifier.height(12.dp))
+
+                    if (suggestionsEnabled) {
+                        SuggestionChipRow(
+                            suggestions = suggestions,
+                            onSuggestionClick = { product -> viewModel.addItemFromSuggestion(product) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    NumericKeypad(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        isMultiplyActive = input.contains('x') || input.contains('*'),
+                        onDigit = viewModel::onDigit,
+                        onBackspace = viewModel::onBackspace,
+                        onClear = viewModel::onClear,
+                        onMultiply = viewModel::onMultiply,
+                        onAddItem = { viewModel.addItemFromInput() }
+                    )
+                }
+
+                VerticalDivider(color = PosBorder, thickness = 1.dp)
+
+                // Right Panel: Orders Cart Column
+                Surface(
+                    color = PosBgCartPanel,
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .fillMaxHeight()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        CartHeader(itemCount = itemCount, onClearCart = viewModel::clearCart)
+
+                        Spacer(Modifier.height(12.dp))
+
+                        if (cart.isEmpty()) {
+                            EmptyCartPlaceholder(modifier = Modifier.weight(1f))
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(cart, key = { it.id }) { item ->
+                                    CartItemRow(
+                                        item = item,
+                                        onRemove = { viewModel.removeItem(item.id) },
+                                        onQuantityChange = { qty -> viewModel.updateQuantity(item.id, qty) }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        OrderSummarySection(
+                            itemCount = itemCount,
+                            total = total,
+                            isLoading = isLoading,
+                            cartNotEmpty = cart.isNotEmpty(),
+                            onPrint = {
+                                checkPermissionAndPrint(
+                                    context = context,
+                                    bluetoothPermissions = bluetoothPermissions,
+                                    printPermissionLauncher = printPermissionLauncher,
+                                    onPrint = viewModel::printReceipt
+                                )
+                            },
+                            onCheckout = { showCheckout = true }
+                        )
+                    }
+                }
+            }
+        } else {
+            // ── SINGLE COLUMN (Mobile Phone Portrait) ─────────────────────────
             Column(
                 modifier = Modifier
-                    .weight(1.2f)
-                    .fillMaxHeight()
-                    .padding(16.dp)
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(12.dp)
             ) {
-                // Top Header Controls: Suggestions On & Printer Settings
                 TopControlRow(
                     suggestionsEnabled = suggestionsEnabled,
                     onToggleSuggestions = viewModel::toggleSuggestions,
                     onNavigateToPrinter = onNavigateToPrinterSettings
                 )
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // Amount Display Card
                 AmountDisplay(input = input, modifier = Modifier.fillMaxWidth())
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // Suggestion chips
                 if (suggestionsEnabled) {
                     SuggestionChipRow(
                         suggestions = suggestions,
                         onSuggestionClick = { product -> viewModel.addItemFromSuggestion(product) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                 }
 
-                // Numeric Keypad
                 NumericKeypad(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     isMultiplyActive = input.contains('x') || input.contains('*'),
@@ -152,31 +251,101 @@ fun QuickSaleScreen(
                     onMultiply = viewModel::onMultiply,
                     onAddItem = { viewModel.addItemFromInput() }
                 )
+
+                // Mobile Bottom Sticky Cart Banner
+                if (cart.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = PosBgCartPanel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, PosBorder, RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showOrdersSheet = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = PosSteelBlue,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            "$itemCount",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = PosTextWhite
+                                        )
+                                    }
+                                }
+                                Text(
+                                    "View Cart",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = PosTextDark
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    "₹${formatAmount(total)}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = PosTextDark
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = PosSteelBlue,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { showCheckout = true }
+                                ) {
+                                    Text(
+                                        "Bill →",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = PosTextWhite,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
 
-            VerticalDivider(color = PosBorder, thickness = 1.dp)
-
-            // ── RIGHT PANEL ("Orders" Cart Column as seen in Web POS) ──────────────
-            Surface(
-                color = PosBgCartPanel,
-                modifier = Modifier
-                    .weight(0.8f)
-                    .fillMaxHeight()
+        // ── Mobile Orders Bottom Sheet ────────────────────────────────────────────
+        if (showOrdersSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showOrdersSheet = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = PosBgCartPanel,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                        .navigationBarsPadding()
                 ) {
                     CartHeader(itemCount = itemCount, onClearCart = viewModel::clearCart)
 
                     Spacer(Modifier.height(12.dp))
 
                     if (cart.isEmpty()) {
-                        EmptyCartPlaceholder(modifier = Modifier.weight(1f))
+                        EmptyCartPlaceholder(modifier = Modifier.height(200.dp))
                     } else {
                         LazyColumn(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.heightIn(max = 320.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(cart, key = { it.id }) { item ->
@@ -189,9 +358,8 @@ fun QuickSaleScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(16.dp))
 
-                    // Summary & Actions
                     OrderSummarySection(
                         itemCount = itemCount,
                         total = total,
@@ -205,7 +373,10 @@ fun QuickSaleScreen(
                                 onPrint = viewModel::printReceipt
                             )
                         },
-                        onCheckout = { showCheckout = true }
+                        onCheckout = {
+                            showOrdersSheet = false
+                            showCheckout = true
+                        }
                     )
                 }
             }
