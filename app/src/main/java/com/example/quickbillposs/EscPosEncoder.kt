@@ -4,12 +4,13 @@ import java.io.ByteArrayOutputStream
 
 /**
  * Native Kotlin ESC/POS Thermal Printer Encoder
- * Designed for 58mm (32 chars) and 80mm (48 chars) thermal printers.
+ * Optimized for 58mm (30 chars) and 80mm (46 chars) thermal printers
+ * to ensure perfect margins and zero line-wrapping glitches.
  */
 class EscPosEncoder(paperWidth: Int = 58) {
 
     private val output = ByteArrayOutputStream()
-    val maxChars: Int = if (paperWidth == 80) 48 else 32
+    val maxChars: Int = if (paperWidth == 80) 46 else 30
 
     companion object {
         private const val ESC = 0x1B
@@ -24,14 +25,21 @@ class EscPosEncoder(paperWidth: Int = 58) {
     fun initPrinter(): EscPosEncoder {
         output.write(ESC)
         output.write(0x40) // ESC @
+        align("left")
         font('a')
+        size(1, 1)
+        bold(false)
         return this
     }
 
     fun text(content: String): EscPosEncoder {
         for (char in content) {
             val code = char.code
-            output.write(if (code in 0x20..0x7E) code else 0x3F)
+            if (code == 0x0A || code == 0x0D || code in 0x20..0x7E) {
+                output.write(code)
+            } else {
+                output.write(0x3F) // '?' for unprintable/non-ASCII
+            }
         }
         return this
     }
@@ -80,13 +88,31 @@ class EscPosEncoder(paperWidth: Int = 58) {
     }
 
     fun separator(char: Char = '-'): EscPosEncoder {
-        return text(char.toString().repeat(maxChars)).newline()
+        align("center")
+        text(char.toString().repeat(maxChars)).newline()
+        return this
     }
 
     fun tableRow(left: String, right: String): EscPosEncoder {
-        val space = maxChars - left.length - right.length
-        val padding = space.coerceAtLeast(1)
-        return text("$left${" ".repeat(padding)}$right").newline()
+        align("left")
+        val cleanRight = right.trim()
+        val maxLeftWidth = maxChars - cleanRight.length - 1
+
+        if (maxLeftWidth <= 0) {
+            text(left.take(maxChars)).newline()
+            align("right").text(cleanRight).newline().align("left")
+            return this
+        }
+
+        val cleanLeft = if (left.length > maxLeftWidth) {
+            left.take(maxLeftWidth)
+        } else {
+            left
+        }
+
+        val padding = (maxChars - cleanLeft.length - cleanRight.length).coerceAtLeast(1)
+        text("$cleanLeft${" ".repeat(padding)}$cleanRight").newline()
+        return this
     }
 
     fun feedLines(count: Int = 1): EscPosEncoder {
@@ -98,7 +124,7 @@ class EscPosEncoder(paperWidth: Int = 58) {
     }
 
     fun cut(partial: Boolean = false): EscPosEncoder {
-        feedLines(1)
+        feedLines(2)
         output.write(GS)
         output.write(0x56)
         output.write(if (partial) 0x42 else 0x41)

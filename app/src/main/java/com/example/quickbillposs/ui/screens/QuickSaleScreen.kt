@@ -1,17 +1,20 @@
 package com.example.quickbillposs.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -33,6 +36,7 @@ import com.example.quickbillposs.ui.components.CartItemRow
 import com.example.quickbillposs.ui.components.NumericKeypad
 import com.example.quickbillposs.ui.components.SuggestionChipRow
 import com.example.quickbillposs.ui.components.formatAmount
+import com.example.quickbillposs.ui.theme.*
 import com.example.quickbillposs.viewmodel.SalesViewModel
 import kotlinx.coroutines.launch
 
@@ -79,7 +83,6 @@ fun QuickSaleScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     var showCheckout by remember { mutableStateOf(false) }
-    var showLabelDialog by remember { mutableStateOf(false) }
 
     // Show print status snackbar
     LaunchedEffect(printStatus) {
@@ -101,269 +104,111 @@ fun QuickSaleScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = PosBgMain
     ) { innerPadding ->
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // ── LEFT PANEL: Keypad + Input + Suggestions ──────────────────────
+            // ── LEFT WORKSPACE (Amount + Keypad + Suggestions) ────────────────────
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1.2f)
                     .fillMaxHeight()
-                    .padding(12.dp)
+                    .padding(16.dp)
             ) {
-                // Top bar: Suggestions toggle + Printer settings
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Suggestions toggle chip
-                    FilterChip(
-                        selected = suggestionsEnabled,
-                        onClick = { viewModel.toggleSuggestions() },
-                        label = {
-                            Text(
-                                text = if (suggestionsEnabled) "Suggestions On" else "Suggestions Off",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lightbulb,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    )
-
-                    // Printer settings button
-                    OutlinedButton(
-                        onClick = onNavigateToPrinterSettings,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Print,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Printer", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                // Amount display
-                AmountDisplay(
-                    input = input,
-                    modifier = Modifier.fillMaxWidth()
+                // Top Header Controls: Suggestions On & Printer Settings
+                TopControlRow(
+                    suggestionsEnabled = suggestionsEnabled,
+                    onToggleSuggestions = viewModel::toggleSuggestions,
+                    onNavigateToPrinter = onNavigateToPrinterSettings
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+
+                // Amount Display Card
+                AmountDisplay(input = input, modifier = Modifier.fillMaxWidth())
+
+                Spacer(Modifier.height(12.dp))
 
                 // Suggestion chips
                 if (suggestionsEnabled) {
                     SuggestionChipRow(
                         suggestions = suggestions,
-                        onSuggestionClick = { product ->
-                            viewModel.addItemFromSuggestion(product)
-                        },
+                        onSuggestionClick = { product -> viewModel.addItemFromSuggestion(product) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
 
-                // Numeric keypad
+                // Numeric Keypad
                 NumericKeypad(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    isMultiplyActive = input.contains('x') || input.contains('*'),
                     onDigit = viewModel::onDigit,
                     onBackspace = viewModel::onBackspace,
                     onClear = viewModel::onClear,
                     onMultiply = viewModel::onMultiply,
-                    onAddItem = {
-                        if (input.isNotBlank()) {
-                            showLabelDialog = true
-                        }
-                    }
+                    onAddItem = { viewModel.addItemFromInput() }
                 )
             }
 
-            // ── DIVIDER ───────────────────────────────────────────────────────
-            VerticalDivider(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(vertical = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
+            VerticalDivider(color = PosBorder, thickness = 1.dp)
 
-            // ── RIGHT PANEL: Orders / Cart ────────────────────────────────────
-            Column(
+            // ── RIGHT PANEL ("Orders" Cart Column as seen in Web POS) ──────────────
+            Surface(
+                color = PosBgCartPanel,
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(0.8f)
                     .fillMaxHeight()
-                    .padding(12.dp)
             ) {
-                // Orders header
-                Text(
-                    text = "Orders",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    CartHeader(itemCount = itemCount, onClearCart = viewModel::clearCart)
 
-                // Cart items
-                if (cart.isEmpty()) {
-                    EmptyCartPlaceholder(modifier = Modifier.weight(1f))
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(cart, key = { it.id }) { item ->
-                            CartItemRow(
-                                item = item,
-                                onRemove = { viewModel.removeItem(item.id) },
-                                onQuantityChange = { qty -> viewModel.updateQuantity(item.id, qty) }
-                            )
+                    Spacer(Modifier.height(12.dp))
+
+                    if (cart.isEmpty()) {
+                        EmptyCartPlaceholder(modifier = Modifier.weight(1f))
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(cart, key = { it.id }) { item ->
+                                CartItemRow(
+                                    item = item,
+                                    onRemove = { viewModel.removeItem(item.id) },
+                                    onQuantityChange = { qty -> viewModel.updateQuantity(item.id, qty) }
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(12.dp))
 
-                // Summary
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Total Qty",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "$itemCount",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Grand Total",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "₹${formatAmount(total)}",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // Print + Bill buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                bluetoothPermissions.all {
-                                    ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-                                }
-                            } else {
-                                true
-                            }
-
-                            if (hasPerm) {
-                                viewModel.printReceipt()
-                            } else {
-                                printPermissionLauncher.launch(bluetoothPermissions)
-                            }
+                    // Summary & Actions
+                    OrderSummarySection(
+                        itemCount = itemCount,
+                        total = total,
+                        isLoading = isLoading,
+                        cartNotEmpty = cart.isNotEmpty(),
+                        onPrint = {
+                            checkPermissionAndPrint(
+                                context = context,
+                                bluetoothPermissions = bluetoothPermissions,
+                                printPermissionLauncher = printPermissionLauncher,
+                                onPrint = viewModel::printReceipt
+                            )
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = cart.isNotEmpty() && !isLoading
-                    ) {
-                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Print")
-                    }
-
-                    Button(
-                        onClick = { showCheckout = true },
-                        modifier = Modifier.weight(1f),
-                        enabled = cart.isNotEmpty() && !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Bill")
-                        }
-                    }
+                        onCheckout = { showCheckout = true }
+                    )
                 }
             }
-        }
-
-        // ── Label Dialog (quick item name) ────────────────────────────────────────
-        if (showLabelDialog) {
-            var labelText by remember { mutableStateOf("") }
-            AlertDialog(
-                onDismissRequest = {
-                    showLabelDialog = false
-                    viewModel.addItemFromInput()
-                },
-                title = { Text("Item label (optional)") },
-                text = {
-                    OutlinedTextField(
-                        value = labelText,
-                        onValueChange = { labelText = it },
-                        placeholder = { Text("e.g. Milk, Rice, etc.") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showLabelDialog = false
-                        viewModel.addItemFromInput(labelText)
-                    }) { Text("Add") }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showLabelDialog = false
-                        viewModel.addItemFromInput()
-                    }) { Text("Skip") }
-                }
-            )
         }
 
         // ── Checkout Bottom Sheet ─────────────────────────────────────────────────
@@ -381,32 +226,257 @@ fun QuickSaleScreen(
 }
 
 @Composable
+private fun TopControlRow(
+    suggestionsEnabled: Boolean,
+    onToggleSuggestions: () -> Unit,
+    onNavigateToPrinter: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Suggestions On / Off Pill
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = SuggestionChipBg,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onToggleSuggestions() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        tint = SuggestionChipText,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (suggestionsEnabled) "Suggestions On" else "Suggestions Off",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = SuggestionChipText
+                    )
+                }
+            }
+
+            // Printer Settings Button
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = PosBgMain,
+                modifier = Modifier
+                    .border(1.dp, PosBorder, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onNavigateToPrinter() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Print,
+                        contentDescription = null,
+                        tint = PosSteelBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Printer Settings",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = PosSteelBlue
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CartHeader(
+    itemCount: Int,
+    onClearCart: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Orders",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = PosTextDark
+        )
+
+        if (itemCount > 0) {
+            TextButton(
+                onClick = onClearCart,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    "Clear All",
+                    color = AccentRed,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrderSummarySection(
+    itemCount: Int,
+    total: Double,
+    isLoading: Boolean,
+    cartNotEmpty: Boolean,
+    onPrint: () -> Unit,
+    onCheckout: () -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Total Qty",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PosTextMuted
+            )
+            Text(
+                text = "$itemCount",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = PosTextDark
+            )
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Grand Total",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = PosTextDark
+            )
+            Text(
+                text = "₹${formatAmount(total)}",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                ),
+                color = PosTextDark
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Action Buttons: Print (White Outlined Pill) and Bill (Steel Blue Pill)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = PosBgMain,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .border(1.dp, PosBorder, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(enabled = cartNotEmpty && !isLoading) { onPrint() }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Print,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (cartNotEmpty) PosTextDark else PosTextMuted
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Print",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = if (cartNotEmpty) PosTextDark else PosTextMuted
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (cartNotEmpty) PosSteelBlue else PosSteelBlue.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(enabled = cartNotEmpty && !isLoading) { onCheckout() }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = PosTextWhite,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = PosTextWhite
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (total > 0) "Bill ₹${formatAmount(total)}" else "Bill",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = PosTextWhite
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AmountDisplay(
     input: String,
     modifier: Modifier = Modifier
 ) {
     val displayText = buildDisplayText(input)
 
-    Box(
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = PosBgKeypadKey,
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Text(
                 text = "Amount",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.labelMedium,
+                color = PosTextMuted
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = displayText,
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 28.sp
+                    fontSize = 32.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = PosTextDark,
                 maxLines = 1
             )
         }
@@ -435,21 +505,43 @@ private fun EmptyCartPlaceholder(modifier: Modifier = Modifier) {
         Icon(
             imageVector = Icons.Default.ShoppingCart,
             contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.outlineVariant
+            modifier = Modifier.size(52.dp),
+            tint = PosTextDark
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             text = "Your cart is empty",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            color = PosTextDark,
             textAlign = TextAlign.Center
         )
+        Spacer(Modifier.height(4.dp))
         Text(
             text = "Enter an amount and tap Add Item",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outlineVariant,
+            color = PosTextMuted,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+private fun checkPermissionAndPrint(
+    context: Context,
+    bluetoothPermissions: Array<String>,
+    printPermissionLauncher: ActivityResultLauncher<Array<String>>,
+    onPrint: () -> Unit
+) {
+    val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        bluetoothPermissions.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+    } else {
+        true
+    }
+
+    if (hasPerm) {
+        onPrint()
+    } else {
+        printPermissionLauncher.launch(bluetoothPermissions)
     }
 }

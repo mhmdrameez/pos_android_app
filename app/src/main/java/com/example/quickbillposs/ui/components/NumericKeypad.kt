@@ -1,37 +1,35 @@
 package com.example.quickbillposs.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material3.*
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-data class KeypadButton(
-    val label: String,
-    val icon: ImageVector? = null,
-    val isSpecial: Boolean = false,   // backspace, clear
-    val isAction: Boolean = false,    // "Add Item" — large accent button
-    val isMultiply: Boolean = false,  // the × button
-)
+import com.example.quickbillposs.ui.theme.PosBgKeypadKey
+import com.example.quickbillposs.ui.theme.PosSteelBlue
+import com.example.quickbillposs.ui.theme.PosTextDark
+import com.example.quickbillposs.ui.theme.PosTextWhite
 
 @Composable
 fun NumericKeypad(
     modifier: Modifier = Modifier,
+    isMultiplyActive: Boolean = false,
     onDigit: (String) -> Unit,
     onBackspace: () -> Unit,
     onClear: () -> Unit,
@@ -48,12 +46,12 @@ fun NumericKeypad(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Row 1
         Row(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             listOf("7", "8", "9").forEach { digit ->
                 RegularKey(
@@ -66,7 +64,7 @@ fun NumericKeypad(
                 )
             }
             SpecialKey(
-                label = "⌫",
+                isBackspace = true,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -78,7 +76,7 @@ fun NumericKeypad(
         // Row 2
         Row(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             listOf("4", "5", "6").forEach { digit ->
                 RegularKey(
@@ -92,6 +90,7 @@ fun NumericKeypad(
             }
             SpecialKey(
                 label = "×",
+                isActive = isMultiplyActive,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -103,16 +102,16 @@ fun NumericKeypad(
         // Rows 3 & 4 with "Add Item" spanning right column
         Row(
             modifier = Modifier.weight(2f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Left 3 columns: 1,2,3 on top row; 0,00,. on bottom row
             Column(
                 modifier = Modifier.weight(3f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf("1", "2", "3").forEach { digit ->
                         RegularKey(
@@ -127,7 +126,7 @@ fun NumericKeypad(
                 }
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf("0", "00", ".").forEach { digit ->
                         RegularKey(
@@ -166,44 +165,9 @@ private fun RegularKey(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .shadow(if (isPressed) 0.dp else 2.dp, RoundedCornerShape(12.dp))
             .background(
-                if (isPressed) MaterialTheme.colorScheme.surfaceVariant
-                else MaterialTheme.colorScheme.surface
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple()
-            ) { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Normal,
-                fontSize = 24.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun SpecialKey(
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isPressed) MaterialTheme.colorScheme.errorContainer
-                else MaterialTheme.colorScheme.surfaceVariant
+                if (isPressed) PosBgKeypadKey.copy(alpha = 0.7f)
+                else PosBgKeypadKey
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -215,12 +179,60 @@ private fun SpecialKey(
             text = label,
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Medium,
-                fontSize = if (label == "×") 28.sp else 22.sp
+                fontSize = 26.sp
             ),
-            color = if (label == "⌫") MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.primary,
+            color = PosTextDark,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun SpecialKey(
+    modifier: Modifier = Modifier,
+    label: String = "",
+    isBackspace: Boolean = false,
+    isActive: Boolean = false,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (isPressed) PosBgKeypadKey.copy(alpha = 0.7f)
+                else PosBgKeypadKey
+            )
+            .then(
+                if (isActive) Modifier.border(1.5.dp, PosTextDark, RoundedCornerShape(12.dp))
+                else Modifier
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple()
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (isBackspace) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Backspace,
+                contentDescription = "Backspace",
+                tint = PosTextDark,
+                modifier = Modifier.size(22.dp)
+            )
+        } else {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 24.sp
+                ),
+                color = PosTextDark,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -236,8 +248,8 @@ private fun AddItemKey(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (isPressed) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.primary
+                if (isPressed) PosSteelBlue.copy(alpha = 0.85f)
+                else PosSteelBlue
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -249,9 +261,10 @@ private fun AddItemKey(
             text = "Add\nItem",
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = 16.sp,
+                lineHeight = 20.sp
             ),
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = PosTextWhite,
             textAlign = TextAlign.Center
         )
     }

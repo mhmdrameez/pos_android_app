@@ -6,21 +6,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlue,
-    onPrimary = TextOnPrimary,
-    primaryContainer = PrimaryBlueDark,
-    onPrimaryContainer = TextPrimary,
+    primary = PosSteelBlue,
+    onPrimary = PosTextWhite,
+    primaryContainer = PosSteelBlueDark,
+    onPrimaryContainer = PosTextWhite,
     secondary = AccentGreen,
-    onSecondary = TextOnPrimary,
-    secondaryContainer = AccentGreenDark,
-    onSecondaryContainer = TextPrimary,
-    tertiary = AccentOrange,
-    onTertiary = TextOnPrimary,
+    onSecondary = PosTextWhite,
     background = NavyBackground,
     onBackground = TextPrimary,
     surface = NavySurface,
@@ -29,29 +24,27 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = TextSecondary,
     outline = NavyBorder,
     error = AccentRed,
-    onError = TextOnPrimary
+    onError = PosTextWhite
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryBlue,
-    onPrimary = TextOnPrimary,
-    primaryContainer = Color(0xFFDBEAFE),
-    onPrimaryContainer = PrimaryBlueDark,
+    primary = PosSteelBlue,
+    onPrimary = PosTextWhite,
+    primaryContainer = Color(0xFFEEF2FF),
+    onPrimaryContainer = PosSteelBlue,
     secondary = AccentGreen,
-    onSecondary = TextOnPrimary,
+    onSecondary = PosTextWhite,
     secondaryContainer = Color(0xFFD1FAE5),
-    onSecondaryContainer = AccentGreenDark,
-    tertiary = AccentOrange,
-    onTertiary = TextOnPrimary,
-    background = LightBackground,
-    onBackground = LightTextPrimary,
-    surface = LightSurface,
-    onSurface = LightTextPrimary,
-    surfaceVariant = LightCard,
-    onSurfaceVariant = LightTextSecondary,
-    outline = LightBorder,
+    onSecondaryContainer = AccentGreen,
+    background = PosBgMain,
+    onBackground = PosTextDark,
+    surface = PosBgMain,
+    onSurface = PosTextDark,
+    surfaceVariant = PosBgKeypadKey,
+    onSurfaceVariant = PosTextMuted,
+    outline = PosBorder,
     error = AccentRed,
-    onError = TextOnPrimary
+    onError = PosTextWhite
 )
 
 @Composable

@@ -3,26 +3,30 @@ package com.example.quickbillposs.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quickbillposs.data.model.CartItem
+import com.example.quickbillposs.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartItemRow(
     item: CartItem,
@@ -30,131 +34,121 @@ fun CartItemRow(
     onQuantityChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onRemove()
-                true
-            } else false
-        }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Text(
-                    text = "Delete",
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(tween(150)) + slideInVertically(tween(150)),
+        modifier = modifier
     ) {
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(tween(200)) + slideInVertically(tween(200)),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Item label + unit price
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.label.ifBlank { "Item" },
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "₹${formatAmount(item.amount)} each",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            // Item name & price subtitle
+            Column(modifier = Modifier.weight(1f)) {
+                val displayName = if (item.label.isNotBlank()) {
+                    if (item.quantity > 1) "${item.label} (${formatAmount(item.amount)} x ${item.quantity})" else item.label
+                } else {
+                    "${formatAmount(item.amount)} x ${item.quantity}"
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Quantity stepper
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    SmallIconButton(
-                        icon = Icons.Default.Remove,
-                        onClick = { onQuantityChange(item.quantity - 1) },
-                        contentDescription = "Decrease"
-                    )
-                    Text(
-                        text = "${item.quantity}",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        modifier = Modifier.widthIn(min = 24.dp),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    SmallIconButton(
-                        icon = Icons.Default.Add,
-                        onClick = { onQuantityChange(item.quantity + 1) },
-                        contentDescription = "Increase"
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Line total
                 Text(
-                    text = "₹${formatAmount(item.lineTotal)}",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                    text = displayName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
                     ),
-                    color = MaterialTheme.colorScheme.primary
+                    color = PosTextDark,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = "₹${formatAmount(item.amount)} each",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = PosTextMuted
                 )
             }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Quantity stepper: [-] Qty [+]
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                SmallIconButton(
+                    icon = Icons.Default.Remove,
+                    onClick = { onQuantityChange(item.quantity - 1) },
+                    contentDescription = "Decrease"
+                )
+                Text(
+                    text = "${item.quantity}",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    ),
+                    color = PosTextDark,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(min = 18.dp)
+                )
+                SmallIconButton(
+                    icon = Icons.Default.Add,
+                    onClick = { onQuantityChange(item.quantity + 1) },
+                    contentDescription = "Increase"
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Line Total
+            Text(
+                text = "₹${formatAmount(item.lineTotal)}",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                ),
+                color = PosTextDark
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Trash Icon
+            Icon(
+                imageVector = Icons.Outlined.DeleteOutline,
+                contentDescription = "Delete item",
+                tint = PosTextMuted,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onRemove() }
+            )
         }
     }
 }
 
 @Composable
 private fun SmallIconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit,
     contentDescription: String
 ) {
-    Box(
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = PosBgMain,
         modifier = Modifier
-            .size(28.dp)
+            .size(26.dp)
+            .border(1.dp, PosBorder, RoundedCornerShape(6.dp))
             .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
     ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(28.dp)
-        ) {
+        Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+                tint = PosTextDark,
+                modifier = Modifier.size(14.dp)
             )
         }
     }
