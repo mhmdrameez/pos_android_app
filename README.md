@@ -1,4 +1,4 @@
-﻿# ⚡ QuickBill POS — Android App
+# ⚡ QuickBill POS — Android App
 
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
@@ -167,22 +167,65 @@ Supported: any 58mm or 80mm Bluetooth ESC/POS printer (Xprinter, GOOJPRT, Munbyn
 
 ---
 
-## 🗄️ Database Schema
+## 🗄️ Database & Storage
+
+The app relies heavily on **Room** for local offline persistence, designed to be performant with Kotlin Coroutines.
+
+### SQLite Schema
 
 ```
-sales           → id, timestamp, total, paymentMethod, itemCount,
-                  amountTendered, changeGiven, receiptText
+sales
+├── id (PK, autoincrement)
+├── timestamp (Long)
+├── total (Double)
+├── paymentMethod ("CASH" | "UPI" | "CARD")
+├── itemCount (Int)
+├── amountTendered (Double)
+├── changeGiven (Double)
+└── receiptText (String)
 
-sale_items      → id, saleId (FK→sales CASCADE), amount, quantity,
-                  label, lineTotal
+sale_items
+├── id (PK, autoincrement)
+├── saleId (FK → sales.id, CASCADE DELETE)
+├── amount (Double) — unit price
+├── quantity (Int)
+├── label (String)
+└── lineTotal (Double)
 
-products        → id, name, price, category, frequency,
-                  lastUsed, isActive
+products
+├── id (PK, autoincrement)
+├── name (String)
+├── price (Double)
+├── category (String)
+├── frequency (Int) — incremented on each sale
+├── lastUsed (Long) — timestamp
+└── isActive (Boolean)
+```
+
+### DataStore Preferences
+App settings are managed using **Jetpack DataStore Preferences** (which replaces SharedPreferences). This stores key-value pairs safely and exposes them as `Flow<T>`, ensuring the UI always reflects the latest settings.
+```kotlin
+// Example preferences stored
+val shopName: Flow<String>
+val shopAddress: Flow<String>
+val taxPercent: Flow<Int>
+val printerMacAddress: Flow<String>
 ```
 
 ---
 
-## 💡 Suggestion Scoring Formula
+## 🧠 ViewModel & State Management
+
+State across the POS app is managed by `SalesViewModel` and `HistoryViewModel`.
+- **StateFlow**: UI state is modeled as `MutableStateFlow` and collected in Compose via `collectAsStateWithLifecycle()`. This ensures the UI is lifecycle-aware and avoids unnecessary compositions.
+- **Cart Management**: The `cartItems` state is a list of data classes. Updating the cart emits a new immutable list to trigger Compose recomposition.
+- **Coroutines**: All database I/O and Bluetooth printing operations are dispatched to `Dispatchers.IO` to keep the main thread unblocked and maintain 60 FPS in Compose.
+
+---
+
+## 💡 Suggestion Scoring Algorithm
+
+The `SuggestionEngine` is designed to show the most relevant products based on the current keypad input.
 
 ```
 score = (priceProximity × 0.40) + (usageFrequency × 0.40) + (recency × 0.20)
@@ -190,8 +233,11 @@ score = (priceProximity × 0.40) + (usageFrequency × 0.40) + (recency × 0.20)
 bucket = products where price ∈ [ input × 0.70 , input × 1.30 ]
 ```
 
-- Bucket miss → top 8 most-used products shown instead
-- Every sale: `learnFromSale(price, label)` creates/increments auto-learned products
+1. **Price Proximity**: If you type `50`, a ₹45 product scores higher than a ₹30 product.
+2. **Frequency**: Products added to the cart frequently get a persistent boost.
+3. **Recency**: Products sold recently get a temporary boost.
+- **Bucket miss** → If no products match the price bucket, it falls back to the top 8 most-used products overall.
+- **Auto-Learning**: Every checkout triggers `learnFromSale(price, label)`, which creates new entries or increments the `frequency` of existing products automatically.
 
 ---
 
