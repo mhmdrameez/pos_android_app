@@ -22,7 +22,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quickbillposs.ui.theme.PosBgKeypadKey
+import com.example.quickbillposs.ui.theme.PosBgKeypadKeyHover
 import com.example.quickbillposs.ui.theme.PosSteelBlue
+import com.example.quickbillposs.ui.theme.PosSteelBlueHover
 import com.example.quickbillposs.ui.theme.PosTextDark
 import com.example.quickbillposs.ui.theme.PosTextWhite
 
@@ -165,10 +167,7 @@ private fun RegularKey(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isPressed) PosBgKeypadKey.copy(alpha = 0.7f)
-                else PosBgKeypadKey
-            )
+            .background(if (isPressed) PosBgKeypadKeyHover else PosBgKeypadKey)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple()
@@ -201,10 +200,7 @@ private fun SpecialKey(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isPressed) PosBgKeypadKey.copy(alpha = 0.7f)
-                else PosBgKeypadKey
-            )
+            .background(if (isPressed) PosBgKeypadKeyHover else PosBgKeypadKey)
             .then(
                 if (isActive) Modifier.border(1.5.dp, PosTextDark, RoundedCornerShape(12.dp))
                 else Modifier
@@ -247,10 +243,7 @@ private fun AddItemKey(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isPressed) PosSteelBlue.copy(alpha = 0.85f)
-                else PosSteelBlue
-            )
+            .background(if (isPressed) PosSteelBlueHover else PosSteelBlue)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple()
